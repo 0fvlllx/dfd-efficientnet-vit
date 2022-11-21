@@ -41,7 +41,7 @@ def process_videos(videos, detector_cls: Type[VideoFaceDetector], selected_datas
         
        
         os.makedirs(out_dir, exist_ok=True)
-        print(len(result))
+        # print(len(result))
         if len(result) > 0:
             with open(os.path.join(out_dir, "{}.json".format(id)), "w") as f:
                 json.dump(result, f)
@@ -58,11 +58,11 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', default="DFDC", type=str,
                         help='Dataset (DFDC / FACEFORENSICS)')
-    parser.add_argument('--data_path', default='', type=str,
-                        help='Videos directory')
+    parser.add_argument('--data_path', default='/data/FaceDatabase/DFDC/train_part', type=str,
+                        help='Videos directory')  # 存放.mp4文件的目录
     parser.add_argument("--detector-type", help="Type of the detector", default="FacenetDetector",
                         choices=["FacenetDetector"])
-    parser.add_argument("--processes", help="Number of processes", default=1)
+    parser.add_argument("--processes", help="Number of processes", default=10)
     opt = parser.parse_args()
     print(opt)
 
@@ -72,14 +72,14 @@ def main():
     else:
         dataset = 1
 
-    videos_paths = []
+    videos_paths = []  # 存放所有路径
     if dataset == 1:
         videos_paths = get_video_paths(opt.data_path, dataset)
     else:
         os.makedirs(os.path.join(opt.data_path, "boxes"), exist_ok=True)
         already_extracted = os.listdir(os.path.join(opt.data_path, "boxes"))
         for folder in os.listdir(opt.data_path):
-            if "boxes" not in folder and "zip" not in folder:
+            if "boxes" not in folder and "zip" not in folder and "metadata" not in folder:  # 目录名不包含zip或不为boxes，以及metadata
                 if os.path.isdir(os.path.join(opt.data_path, folder)): # For training and test set
                     for video_name in os.listdir(os.path.join(opt.data_path, folder)):
                         if video_name.split(".")[0] + ".json" in already_extracted:

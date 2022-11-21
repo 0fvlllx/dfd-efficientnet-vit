@@ -1,9 +1,13 @@
 import json
 import os
+import shutil
 from glob import glob
 from pathlib import Path
 import cv2
+
+
 banned_folders = ["boxes", "set", "splits", "actors", "crops", "DeepFakeDetection", "actors", "zip"]
+
 def get_video_paths(data_path, dataset, excluded_videos=[]):
     videos_folders = os.listdir(data_path)
     videos_paths = []
@@ -100,4 +104,24 @@ def get_originals_and_fakes(root_dir):
                 originals.append(k[:-4])
 
     return originals, fakes
+
+
+def random_sample_and_copy_rename(src, des, dir_name, ratio=0.01):
+    """按ratio采样文件，转移至目标文件夹并重命名"""
+    file_name = os.listdir(src)
+    file_number = len(file_name)
+    print("源地址文件数量: ", file_number)
+    for file in file_name:
+        if file.endswith('.json'):
+            new_file = os.path.join(des, dir_name + '_' + file)
+            shutil.copy(os.path.join(src, file), new_file)
+
+
+if __name__ == '__main__':
+    paths = os.walk("/data/FaceDatabase/DFDC/train")
+    des_path = "/data/FaceDatabase/DFDC/train/metadata"
+    for root_path, dir_list, _ in paths:
+        for dir_name in dir_list:
+            if dir_name.startswith('dfdc'):
+                random_sample_and_copy_rename(os.path.join(root_path, dir_name), des_path, dir_name)
 

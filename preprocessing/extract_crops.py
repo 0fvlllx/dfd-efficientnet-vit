@@ -22,6 +22,7 @@ from utils import get_video_paths, get_method, get_method_from_name
 def extract_video(video, root_dir, dataset):
     try:
         if dataset == 0:
+            # 输出结果'/data/lixiang/Downloads/DFDC/dfdc_train_part_0/boxes/mnvyuokhem.json'
             bboxes_path = os.path.join(opt.data_path, "boxes", os.path.splitext(os.path.basename(video))[0] + ".json")
         else:
             bboxes_path = os.path.join(opt.data_path, "boxes", get_method_from_name(video), os.path.splitext(os.path.basename(video))[0] + ".json")
@@ -86,9 +87,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', default="DFDC", type=str,
                         help='Dataset (DFDC / FACEFORENSICS')
-    parser.add_argument('--data_path', default='', type=str,
+    parser.add_argument('--data_path', default='/data/FaceDatabase/DFDC/train', type=str,
                         help='Videos directory')
-    parser.add_argument('--output_path', default='', type=str,
+    parser.add_argument('--output_path', default='/data/lixiang/dfd_EfficientNet_ViT/dataset/training_set_part/DFDC', type=str,
                         help='Output directory')
 
     opt = parser.parse_args()
@@ -111,7 +112,7 @@ if __name__ == '__main__':
         paths = get_video_paths(os.path.join(opt.data_path, "manipulated_sequences"), dataset)
         paths.extend(get_video_paths(os.path.join(opt.data_path, "original_sequences"), dataset))
     
-    with Pool(processes=cpu_count()-2) as p:
+    with Pool(processes=10) as p:
         with tqdm(total=len(paths)) as pbar:
             for v in p.imap_unordered(partial(extract_video, root_dir=opt.data_path, dataset=dataset), paths):
                 pbar.update()

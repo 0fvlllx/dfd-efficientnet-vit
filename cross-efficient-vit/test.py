@@ -38,12 +38,12 @@ import argparse
 #########################
 
 MODELS_DIR = "models"
-BASE_DIR = "../../deep_fakes"
+BASE_DIR = "../"
 DATA_DIR = os.path.join(BASE_DIR, "dataset")
 TEST_DIR = os.path.join(DATA_DIR, "test_set")
 OUTPUT_DIR = os.path.join(MODELS_DIR, "tests")
 
-TEST_LABELS_PATH = os.path.join(BASE_DIR, "dataset/dfdc_test_labels.csv")
+TEST_LABELS_PATH = os.path.join(BASE_DIR, "data/dfdc_test_labels.csv")
 
 #########################
 ####### UTILITIES #######
@@ -92,7 +92,6 @@ def save_roc_curves(correct_labels, preds, model_name, accuracy, loss, f1):
 
 
 def read_frames(video_path, videos):
-    
     # Get the video label based on dataset selected
     method = get_method(video_path, DATA_DIR)
     if "Original" in video_path:
@@ -113,7 +112,6 @@ def read_frames(video_path, videos):
     frames_paths_dict = {}
 
     # Group the faces with the same index, reduce probabiity to skip some faces in the same video
-
     for path in frames_paths:
         for i in range(0,3): # Consider up to 3 faces per video
             if "_" + str(i) in path:
@@ -162,14 +160,14 @@ if __name__ == "__main__":
     
     parser.add_argument('--workers', default=10, type=int,
                         help='Number of data loader workers.')
-    parser.add_argument('--model_path', default='', type=str, metavar='PATH',
-                        help='Path to model checkpoint (default: none).')
-    parser.add_argument('--dataset', type=str, default='DFDC', 
+    parser.add_argument('--model_path', default='models/efficientnet_checkpoint4_DFDC', type=str, metavar='PATH',
+                        help='Path to model checkpoint (default: none).')  # 修改不同的模型权重
+    parser.add_argument('--dataset', type=str, default='DFDC',  # 修改不同数据集的文件结构
                         help="Which dataset to use (Deepfakes|Face2Face|FaceShifter|FaceSwap|NeuralTextures|DFDC)")
     parser.add_argument('--max_videos', type=int, default=-1, 
                         help="Maximum number of videos to use for training (default: all).")
-    parser.add_argument('--config', type=str, 
-                        help="Which configuration to use. See into 'config' folder.")
+    parser.add_argument('--config', type=str, default='configs/architecture.yaml',
+                        help="Which configuration to use. See into 'config' folder.")  # 修改超参数配置文件
     parser.add_argument('--efficient_net', type=int, default=0, 
                         help="Which EfficientNet version to use (0 or 7, default: 0)")
     parser.add_argument('--frames_per_video', type=int, default=30, 
@@ -207,7 +205,6 @@ if __name__ == "__main__":
         os.makedirs(OUTPUT_DIR)
    
 
-
     NUM_CLASSES = 1
     preds = []
 
@@ -227,9 +224,9 @@ if __name__ == "__main__":
             paths.append(os.path.join(method_folder, video_folder))
 
     # Read faces
-    with Pool(processes=cpu_count()-1) as p:
+    with Pool(processes=10) as p:
         with tqdm(total=len(paths)) as pbar:
-            for v in p.imap_unordered(partial(read_frames, videos=videos),paths):
+            for v in p.imap_unordered(partial(read_frames, videos=videos), paths):
                 pbar.update()
 
     video_names = np.asarray([row[2] for row in videos])

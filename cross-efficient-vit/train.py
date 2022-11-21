@@ -1,11 +1,11 @@
 import torch
 from torch.utils.data import DataLoader, TensorDataset, Dataset
-from einops import rearrange, repeat
-from torch import nn, einsum
-import torch.nn as nn
-import torch.nn.functional as F
-from random import random, randint, choice
-from vit_pytorch import ViT
+# from einops import rearrange, repeat
+# from torch import nn, einsum
+# import torch.nn as nn
+# import torch.nn.functional as F
+# from random import random, randint, choice
+# from vit_pytorch import ViT
 import numpy as np
 import os
 import json
@@ -14,9 +14,9 @@ from functools import partial
 from multiprocessing import Manager
 from progress.bar import ChargingBar
 from cross_efficient_vit import CrossEfficientViT
-import uuid
-from torch.utils.data import DataLoader, TensorDataset, Dataset
-from sklearn.metrics import accuracy_score
+# import uuid
+# from torch.utils.data import DataLoader, TensorDataset, Dataset
+# from sklearn.metrics import accuracy_score
 import cv2
 from transforms.albu import IsotropicResize
 import glob
@@ -31,20 +31,23 @@ import math
 import yaml
 import argparse
 
-BASE_DIR = '../../deep_fakes/'
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+
+
+BASE_DIR = '../'
 DATA_DIR = os.path.join(BASE_DIR, "dataset")
-TRAINING_DIR = os.path.join(DATA_DIR, "training_set")
+LABEL_DIR = os.path.join(BASE_DIR, "data")
+TRAINING_DIR = os.path.join(DATA_DIR, "training_set_part")
 VALIDATION_DIR = os.path.join(DATA_DIR, "validation_set")
 TEST_DIR = os.path.join(DATA_DIR, "test_set")
 MODELS_PATH = "models"
-METADATA_PATH = os.path.join(BASE_DIR, "data/metadata") # Folder containing all training metadata for DFDC dataset
-VALIDATION_LABELS_PATH = os.path.join(DATA_DIR, "dfdc_val_labels.csv")
+METADATA_PATH = os.path.join(BASE_DIR, "data/metadata_part") # Folder containing all training metadata for DFDC dataset
+VALIDATION_LABELS_PATH = os.path.join(LABEL_DIR, "dfdc_val_labels.csv")
 
 
 def read_frames(video_path, train_dataset, validation_dataset):
-    
     # Get the video label based on dataset selected
-    method = get_method(video_path, DATA_DIR)
+    # method = get_method(video_path, DATA_DIR)
     if TRAINING_DIR in video_path:
         if "Original" in video_path:
             label = 0.
@@ -86,10 +89,9 @@ def read_frames(video_path, train_dataset, validation_dataset):
     else:
         min_video_frames = max(int(config['training']['frames-per-video'] * config['training']['rebalancing-fake']),1)
 
-    
-    
     if VALIDATION_DIR in video_path:
         min_video_frames = int(max(min_video_frames/8, 2))
+
     frames_interval = int(frames_number / min_video_frames)
     frames_paths = os.listdir(video_path)
     frames_paths_dict = {}
@@ -102,17 +104,18 @@ def read_frames(video_path, train_dataset, validation_dataset):
                     frames_paths_dict[i] = [path]
                 else:
                     frames_paths_dict[i].append(path)
+
     # Select only the frames at a certain interval
     if frames_interval > 0:
         for key in frames_paths_dict.keys():
             if len(frames_paths_dict) > frames_interval:
                 frames_paths_dict[key] = frames_paths_dict[key][::frames_interval]
-            
             frames_paths_dict[key] = frames_paths_dict[key][:min_video_frames]
+
     # Select N frames from the collected ones
     for key in frames_paths_dict.keys():
         for index, frame_image in enumerate(frames_paths_dict[key]):
-            #image = transform(np.asarray(cv2.imread(os.path.join(video_path, frame_image))))
+            # image = transform(np.asarray(cv2.imread(os.path.join(video_path, frame_image))))
             image = cv2.imread(os.path.join(video_path, frame_image))
             if image is not None:
                 if TRAINING_DIR in video_path:
@@ -129,28 +132,37 @@ if __name__ == "__main__":
                         help='Number of data loader workers.')
     parser.add_argument('--resume', default='', type=str, metavar='PATH',
                         help='Path to latest checkpoint (default: none).')
-    parser.add_argument('--dataset', type=str, default='All', 
+    parser.add_argument('--dataset', type=str, default='DFDC',
                         help="Which dataset to use (Deepfakes|Face2Face|FaceShifter|FaceSwap|NeuralTextures|All)")
     parser.add_argument('--max_videos', type=int, default=-1, 
                         help="Maximum number of videos to use for training (default: all).")
-    parser.add_argument('--config', type=str, 
+    parser.add_argument('--config', type=str, default='configs/architecture.yaml',
                         help="Which configuration to use. See into 'config' folder.")
     parser.add_argument('--efficient_net', type=int, default=0, 
                         help="Which EfficientNet version to use (0 or 7, default: 0)")
     parser.add_argument('--patience', type=int, default=5, 
                         help="How many epochs wait before stopping for validation loss not improving.")
-    
+    parser.add_argument('--seed', default=404, type=int)
+
     opt = parser.parse_args()
     print(opt)
+
+    if opt.seed >= 0:
+        torch.manual_seed(opt.seed)
+        torch.cuda.manual_seed(opt.seed)
 
     with open(opt.config, 'r') as ymlfile:
         config = yaml.safe_load(ymlfile)
  
     model = CrossEfficientViT(config=config)
-    model.train()   
+    model.train()
     
-    optimizer = torch.optim.SGD(model.parameters(), lr=config['training']['lr'], weight_decay=config['training']['weight-decay'])
-    scheduler = lr_scheduler.StepLR(optimizer, step_size=config['training']['step-size'], gamma=config['training']['gamma'])
+    optimizer = torch.optim.SGD(model.parameters(),
+                                lr=config['training']['lr'],
+                                weight_decay=config['training']['weight-decay'])
+    scheduler = lr_scheduler.StepLR(optimizer,
+                                    step_size=config['training']['step-size'],
+                                    gamma=config['training']['gamma'])
     starting_epoch = 0
     if os.path.exists(opt.resume):
         model.load_state_dict(torch.load(opt.resume))
@@ -163,7 +175,7 @@ if __name__ == "__main__":
    
     #READ DATASET
     if opt.dataset != "All":
-        folders = ["Original", opt.dataset]
+        folders = [opt.dataset]
     else:
         folders = ["Original", "DFDC", "Deepfakes", "Face2Face", "FaceShifter", "FaceSwap", "NeuralTextures"]
 
@@ -186,8 +198,9 @@ if __name__ == "__main__":
 
     with Pool(processes=10) as p:
         with tqdm(total=len(paths)) as pbar:
-            for v in p.imap_unordered(partial(read_frames, train_dataset=train_dataset, validation_dataset=validation_dataset),paths):
+            for v in p.imap_unordered(partial(read_frames, train_dataset=train_dataset, validation_dataset=validation_dataset), paths):
                 pbar.update()
+
     train_samples = len(train_dataset)
     train_dataset = shuffle_dataset(train_dataset)
     validation_samples = len(validation_dataset)
@@ -270,8 +283,9 @@ if __name__ == "__main__":
                 bar.next()
 
              
-            if index%1200 == 0:
-                print("\nLoss: ", total_loss/counter, "Accuracy: ",train_correct/(counter*config['training']['bs']) ,"Train 0s: ", negative, "Train 1s:", positive)  
+            if index % 1200 == 0:
+                print("\nLoss: ", total_loss/counter, "Accuracy: ",train_correct/(counter*config['training']['bs']) ,
+                      "Train 0s: ", negative, "Train 1s:", positive)
 
 
         val_counter = 0
@@ -289,7 +303,7 @@ if __name__ == "__main__":
             val_labels = val_labels.unsqueeze(1)
             val_pred = model(val_images)
             val_pred = val_pred.cpu()
-            val_loss = loss_fn(val_pred, val_labels)
+            val_loss = loss_fn(val_pred, val_labels.float())
             total_val_loss += round(val_loss.item(), 2)
             corrects, positive_class, negative_class = check_correct(val_pred, val_labels)
             val_correct += corrects

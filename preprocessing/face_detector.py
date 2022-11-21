@@ -35,7 +35,7 @@ class FacenetDetector(VideoFaceDetector):
 
     def __init__(self, device="cuda:0") -> None:
         super().__init__()
-        self.detector = MTCNN(margin=0, thresholds=[0.85, 0.95, 0.95], device=device)
+        self.detector = MTCNN(margin=0, thresholds=[0.80, 0.90, 0.90], device=device)
 
     def _detect_faces(self, frames) -> List:
         batch_boxes, *_ = self.detector.detect(frames, landmarks=False)
